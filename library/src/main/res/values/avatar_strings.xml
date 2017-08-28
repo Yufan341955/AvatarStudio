@@ -18,5 +18,7 @@
     <string name="mis_permission_dialog_ok">好</string>
     <string name="mis_permission_dialog_cancel">拒绝</string>
     <string name="mis_permission_rationale_write_storage">需要您提供写/读存储权限</string>
+    <string name="mis_permission_rationale_camera">需要照相机权限</string>
+    <string name="mis_permission_rationale_camera_write">需要照相机和读写权限</string>
 
 </resources>

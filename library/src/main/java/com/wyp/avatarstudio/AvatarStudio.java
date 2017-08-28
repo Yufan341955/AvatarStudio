@@ -3,6 +3,7 @@ package com.wyp.avatarstudio;
 import android.Manifest;
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.DialogInterface;
@@ -37,6 +38,8 @@ import java.io.IOException;
 public class AvatarStudio extends DialogFragment implements View.OnClickListener {
     private static final int     CAMAER_REQUEST_STORAGE_WRITE_ACCESS_PERMISSION  = 110;
     private static final int     GALLERY_REQUEST_STORAGE_WRITE_ACCESS_PERMISSION = 111;
+    private static final int     CAMAER_REQUEST_CAMAER_PERMISSION                = 112;
+    private static final int     CAMAER_REQUEST_CAMAER_WRITE_PERMISSION          = 113;
     private static final int     REQUEST_CAMERA                                  = 100;
     private static final int     REQUEST_GALLERY                                 = 101;
     private static final int     REQUEST_CROP                                    = 102;
@@ -182,7 +185,17 @@ public class AvatarStudio extends DialogFragment implements View.OnClickListener
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 gallery();
             }
-        } else {
+        } else if(requestCode==CAMAER_REQUEST_CAMAER_WRITE_PERMISSION){
+            if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                requestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        getString(R.string.mis_permission_rationale_write_storage),
+                        CAMAER_REQUEST_STORAGE_WRITE_ACCESS_PERMISSION);
+            }
+        }else if(requestCode==CAMAER_REQUEST_CAMAER_PERMISSION){
+            if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                camera();
+            }
+        }else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
@@ -296,6 +309,7 @@ public class AvatarStudio extends DialogFragment implements View.OnClickListener
 
     private String handleImage(Intent data) {
         Uri uri = data.getData();
+        uri=geturi(data);
         String imagePath = null;
         if (Build.VERSION.SDK_INT >= 19) {
             if (DocumentsContract.isDocumentUri(getActivity(), uri)) {
@@ -334,12 +348,22 @@ public class AvatarStudio extends DialogFragment implements View.OnClickListener
     public void onClick(View v) {
         int id = v.getId();
         if (id == R.id.camera) {
-            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
+            if(ContextCompat.checkSelfPermission(getContext(),Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED
+                    &&ContextCompat.checkSelfPermission(getContext(),Manifest.permission.WRITE_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED){
+                requestPermission(Manifest.permission.CAMERA,
+                        getString(R.string.mis_permission_rationale_camera_write),
+                        CAMAER_REQUEST_CAMAER_WRITE_PERMISSION);
+            } else if(ContextCompat.checkSelfPermission(getContext(),Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED
+                    &&ContextCompat.checkSelfPermission(getContext(),Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED){
+                requestPermission(Manifest.permission.CAMERA,
+                        getString(R.string.mis_permission_rationale_camera),
+                        CAMAER_REQUEST_CAMAER_PERMISSION);
+            }else if(ContextCompat.checkSelfPermission(getContext(),Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED
+                    &&ContextCompat.checkSelfPermission(getContext(),Manifest.permission.WRITE_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED){
                 requestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
                         getString(R.string.mis_permission_rationale_write_storage),
                         CAMAER_REQUEST_STORAGE_WRITE_ACCESS_PERMISSION);
-            } else {
+            }else {
                 camera();
             }
         } else if (id == R.id.gallery) {
@@ -431,6 +455,35 @@ public class AvatarStudio extends DialogFragment implements View.OnClickListener
         }
 
     }
+    public Uri geturi(android.content.Intent intent) {
+        Uri uri=intent.getData();
+        String type=intent.getType();
+        if(uri.getScheme().equals("file")&&(type.contains("image/"))){
+            String path=uri.getEncodedPath();
+            if(path!=null){
+                path=Uri.decode(path);
+                ContentResolver cr=getContext().getContentResolver();
+                StringBuffer buff=new StringBuffer();
+                buff.append("(").append(MediaStore.Images.ImageColumns.DATA).append("=")
+                        .append("'"+path+"'").append(")");
+                Cursor cur=cr.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        new String[]{MediaStore.Images.ImageColumns._ID},buff.toString(),null,null);
+                int index=0;
+                for(cur.moveToFirst();!cur.isAfterLast();cur.moveToNext()){
+                    index=cur.getColumnIndex(MediaStore.Images.ImageColumns._ID);
+                    index=cur.getInt(index);
+                }
+                if(index==0){
 
+                }else {
+                    Uri uri_temp=Uri.parse("content://media/external/images/media/"+index);
+                    if(uri_temp!=null){
+                        uri=uri_temp;
+                    }
+                }
+            }
+        }
+        return uri;
+    }
 
 }
